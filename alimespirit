@@ -1,0 +1,143 @@
+-- Load the DrRay library from the GitHub repository Library
+local DrRayLibrary = loadstring(game:HttpGet("https://raw.githubusercontent.com/AZYsGithub/DrRay-UI-Library/main/DrRay.lua"))()
+
+-- Tạo cửa sổ chính
+local window = DrRayLibrary:Load("Gay Hub X Eogibiti", "Dark")
+
+-- Tạo Tab MISC với ID hình ảnh của bạn
+local tab1 = DrRayLibrary.newTab("MISC", "ImageIdHere")
+
+-- Dungeon data: name and position
+local dungeons = {
+    ["King Of Hell Zoru"] = Vector3.new(-2599.11, 14.7828, -2007.38),
+    ["[ Awaken Cid ]"] = Vector3.new(-6477.67, 8.06364, 1599.11),
+    ["Gear 5"] = Vector3.new(5382.8, 26.2211, -111.324),
+    ["True Demon Lord Rimuro"] = Vector3.new(1156.17, 5.30349, -2853.94),
+    ["Wukong Dungeon"] = Vector3.new(-611.972, 66.1005, -7187.31),
+    ["Gear 5 Duo"] = Vector3.new(5555.81, 27.25, -570.905),
+    ["[ Evolved Veguta Dungeon ]"] = Vector3.new(1025.18, 16.5194, 4553.38),
+    ["Gorp Dungeon"] = Vector3.new(5546.75, 67.5993, -796.221),
+    ["[ Kaijo 8 ]"] = Vector3.new(-418.353, 65.7873, -6440.68),
+    ["[ Revived Gojoh ]"] = Vector3.new(-1891.03, 13.307, -10208),
+    ["[ Goguta Blue ]"] = Vector3.new(380.547, 47.3187, -7296.61),
+    ["[ Six Paths Madaro ]"] = Vector3.new(3508.43, 10.7641, 540.694),
+    ["Narudo/Sasooke Duo"] = Vector3.new(3915.97, 63.0961, 496.913),
+    ["[ SSJ 100/Gear 6 ]"] = Vector3.new(-419.779, -1672.23, -6439.31),
+    ["[ The World ]"] = Vector3.new(-46.3965, 46.3172, -6286.45),
+    ["Yorichi"] = Vector3.new(-6006.42, 9.45149, 1369.1),
+    ["Infinite Castle: Akazo"] = Vector3.new(-4785.31, 72.1633, -2002.78),
+    ["Kokushibu Dungeon"] = Vector3.new(-1788.22, 31.3453, 2414.95)
+}
+
+-- Tạo danh sách tên Dungeon
+local dungeonNames = {}
+for dungeonName, _ in pairs(dungeons) do
+    table.insert(dungeonNames, dungeonName)
+end
+
+-- Thêm Dropdown cho việc chọn Dungeon
+local selectedDungeon = nil
+tab1.newDropdown("Select Dungeon", "Chọn một Dungeon để teleport", dungeonNames, function(selectedOption)
+    selectedDungeon = selectedOption
+end)
+
+-- Nút Teleport tới Dungeon đã chọn
+tab1.newButton("Teleport", "Teleport tới Dungeon đã chọn", function()
+    if selectedDungeon and dungeons[selectedDungeon] then
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(dungeons[selectedDungeon])
+    else
+        print("Vui lòng chọn một Dungeon trước!")
+    end
+end)
+
+-- Toggle cho Instant Kill (WaveEnemies)
+tab1.newToggle("Instant Kill (WaveEnemies)", "Bật/Tắt Instant Kill cho WaveEnemies", false, function(state)
+    getgenv().InstantKillWaveEnemies = state
+    if state then
+        spawn(instantKillWaveEnemies)
+    end
+end)
+
+-- Toggle cho Instant Kill (Boss)
+tab1.newToggle("Instant Kill (Boss)", "Bật/Tắt Instant Kill cho Boss", false, function(state)
+    getgenv().InstantKillBoss = state
+    if state then
+        spawn(instantKillBoss)
+    end
+end)
+
+-- Toggle cho Teleport & Kill
+tab1.newToggle("Teleport & Kill", "Bật/Tắt chức năng Teleport và Kill mob", false, function(state)
+    getgenv().TeleportAndKill = state
+end)
+
+-- Các chức năng Instant Kill và Teleport & Kill giữ nguyên logic
+local damageAmount = 18000000000 -- 18 tỷ damage
+local killThreshold = 10 -- ngưỡng health để giết
+
+-- Hàm Instant Kill cho WaveEnemies
+local function instantKillWaveEnemies()
+    while getgenv().InstantKillWaveEnemies do
+        task.wait(1)
+        pcall(function()
+            sethiddenproperty(game.Players.LocalPlayer, "SimulationRadius", math.huge)
+            sethiddenproperty(game.Players.LocalPlayer, "MaxSimulationRadius", math.huge)
+            
+            local waveEnemiesFolder = workspace:FindFirstChild("WaveEnemies")
+            if waveEnemiesFolder then
+                for _, mob in ipairs(waveEnemiesFolder:GetDescendants()) do
+                    if mob:IsA('Humanoid') and mob.Parent:IsA('Model') and mob.Parent.Name ~= game.Players.LocalPlayer.Name then
+                        mob.Health = mob.Health - damageAmount
+                        if mob.Health <= killThreshold then
+                            mob.Health = 0
+                        end
+                    end
+                end
+            end
+        end)
+    end
+end
+
+-- Hàm Instant Kill cho Boss
+local function instantKillBoss()
+    while getgenv().InstantKillBoss do
+        task.wait(1)
+        pcall(function()
+            local bossFolder = workspace:FindFirstChild("Boss")
+            if bossFolder then
+                for _, boss in ipairs(bossFolder:GetDescendants()) do
+                    if boss:IsA('Humanoid') and boss.Parent:IsA('Model') and boss.Parent.Name ~= game.Players.LocalPlayer.Name then
+                        boss.Health = 0
+                    end
+                end
+            end
+        end)
+    end
+end
+
+-- Teleport và Kill mob
+game:GetService("RunService").Stepped:Connect(function()
+    if getgenv().TeleportAndKill then
+        local folders = {"Boss", "WaveEnemies"}
+        for _, folderName in ipairs(folders) do
+            local folder = workspace:FindFirstChild(folderName)
+            if folder then
+                for _, mob in pairs(folder:GetChildren()) do
+                    if mob:IsA("Model") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
+                        local player = game.Players.LocalPlayer
+                        local character = player.Character or player.CharacterAdded:Wait()
+                        local humanoidRootPart = mob:FindFirstChild("HumanoidRootPart")
+                        if humanoidRootPart then
+                            local newPosition = humanoidRootPart.Position + Vector3.new(0, 50, 0)
+                            character:MoveTo(newPosition)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Bắt đầu Instant Kill cho WaveEnemies và Boss
+spawn(instantKillWaveEnemies)
+spawn(instantKillBoss)
